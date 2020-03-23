@@ -1,23 +1,24 @@
-package io.banking.springsecurityjwt;
+package io.banking.springsecurityjwt.security;
 
 
 import io.banking.springsecurityjwt.models.AuthenticationRequest;
 import io.banking.springsecurityjwt.models.AuthenticationResponse;
+import io.banking.springsecurityjwt.models.JwtUserDetails;
 import io.banking.springsecurityjwt.services.MyUserDetailsService;
 import io.banking.springsecurityjwt.util.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-public class HelloResource {
+public class AuthenticationRestController {
     @Autowired
     private AuthenticationManager authenticationManager;
 
@@ -33,15 +34,17 @@ public class HelloResource {
     }
 
     @RequestMapping(value = "/authenticate", method = RequestMethod.POST)
-    public ResponseEntity<?> createAuthenticationToken(@RequestBody AuthenticationRequest authenticationRequest) throws Exception {
+    public ResponseEntity<?> createAuthenticationToken(@RequestBody AuthenticationRequest authenticationRequest) throws AuthenticationException {
         try {
             authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(authenticationRequest.getUsername(), authenticationRequest.getPassword()));
+        } catch (DisabledException e) {
+            throw new AuthenticationException("Username is disabled", e);
         } catch (BadCredentialsException e) {
-            throw new Exception("Incorrect Username and Password", e);
+            throw new AuthenticationException("Incorrect Username and Password", e);
         }
 
-        final UserDetails userDetails = userDetailsService.loadUserByUsername(authenticationRequest.getUsername());
+        final JwtUserDetails userDetails = userDetailsService.loadUserByUsername(authenticationRequest.getUsername());
         final String jwt = jwtTokenUtill.generateToken(userDetails);
 
         return ResponseEntity.ok(new AuthenticationResponse(jwt));

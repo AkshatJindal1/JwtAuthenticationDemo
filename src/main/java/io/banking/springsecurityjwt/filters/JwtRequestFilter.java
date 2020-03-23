@@ -1,11 +1,13 @@
 package io.banking.springsecurityjwt.filters;
 
+import io.banking.springsecurityjwt.models.JwtUserDetails;
 import io.banking.springsecurityjwt.services.MyUserDetailsService;
 import io.banking.springsecurityjwt.util.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -25,10 +27,16 @@ public class JwtRequestFilter extends OncePerRequestFilter {
     @Autowired
     JwtUtil jwtUtil;
 
+    private final String tokenHeader;
+
+    public JwtRequestFilter(@Value("${jwt.authorizationHeader}") String tokenHeader) {
+        this.tokenHeader = tokenHeader;
+    }
+
     @Override
     protected void doFilterInternal(HttpServletRequest httpServletRequest, HttpServletResponse httpServletResponse, FilterChain filterChain) throws ServletException, IOException {
 
-        final String authorizationHeader = httpServletRequest.getHeader("Authorization");
+        final String authorizationHeader = httpServletRequest.getHeader(this.tokenHeader);
 
         String username = null;
         String jwt = null;
@@ -39,7 +47,13 @@ public class JwtRequestFilter extends OncePerRequestFilter {
         }
 
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            UserDetails userDetails = this.userDetailsService.loadUserByUsername(username);
+            JwtUserDetails userDetails = null;
+            try {
+                userDetails = this.userDetailsService.loadUserByUsername(username);
+            } catch (UsernameNotFoundException e) {
+                httpServletResponse.sendError(HttpServletResponse.SC_UNAUTHORIZED, e.getMessage());
+                return;
+            }
             if (jwtUtil.validateToken(jwt, userDetails)) {
                 UsernamePasswordAuthenticationToken usernamePasswordAuthenticationToken = new UsernamePasswordAuthenticationToken(
                         userDetails, null, userDetails.getAuthorities());
