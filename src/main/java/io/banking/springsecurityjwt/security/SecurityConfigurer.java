@@ -36,7 +36,7 @@ public class SecurityConfigurer extends WebSecurityConfigurerAdapter {
         http.csrf().disable().exceptionHandling()
                 .authenticationEntryPoint(unauthorizedHandler).and()
                 .authorizeRequests().antMatchers("/authenticate").permitAll()
-                .anyRequest().authenticated()
+                .antMatchers("/").authenticated()
                 .and().sessionManagement()
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS);
         http.addFilterBefore(jwtRequestFilter, UsernamePasswordAuthenticationFilter.class);
